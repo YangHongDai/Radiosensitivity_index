@@ -1,0 +1,214 @@
+####Writted by Yang-Hong Dai, Department of Radiation Oncology, Tri-service General hospital, Taiwan
+
+#For quality control###########
+install.packages('sigQC')
+library(logr)
+
+set1 <- read.csv('/Users/arthurdai/Desktop/GSE/Set1.csv', row.names=1)
+#set1 = set1[-1,]
+#set1 = scale(set1)
+set1 = t(set1)
+#row.names(set1) <- as.character(1:(dim(set1)[1])) #set the gene names
+colnames(set1) <- paste0('d1_',as.character(1:(dim(set1)[2])))
+
+set2 <- read.csv('/Users/arthurdai/Desktop/GSE/Set2.csv',row.names=1)
+#set2 = set2[-1,]
+set2 = t(set2)
+#set2 = scale(set2)
+#row.names(set2) <- as.character(1:(dim(set2)[1])) #set the gene names
+colnames(set2) <- paste0('d2_',as.character(1:(dim(set2)[2])))
+
+
+#gene sets that we are going to use for our gene signatures
+gene_sig <- c('JUN','HDAC1','RELA','PRKCB','SUMO1','ABL1','STAT1','AR','CDK1','IRF1') 
+#gene_sig <- c("1", "2", "3", "4", "5", "6", "7","8","9","10") 
+#gene_sig <-as.character(c(1:10))
+expr_matrix = list()
+expr_matrix[["set1"]] = set1
+expr_matrix[["set2"]] = set2
+
+sigs_list = list()
+sigs_list[['gene_sig']] = as.matrix(gene_sig)
+
+showResults <- TRUE # we do not want to show the reuslts in R graphics windows
+doNegativeControl <- FALSE # we do not want to compute the negative or permutation controls for time purposes
+library(sigQC)
+make_all_plots(sigs_list, expr_matrix,showResults = showResults, doNegativeControl = doNegativeControl)
+
+#For rank-transformed RSI values
+data <- read.csv('/Users/arthurdai/Desktop/GSE/TCGA_all.csv',row.names=1)
+par(pin=c(6,1.5))
+boxplot(,
+        las = 2,
+        col = c("blue","red"),
+        border = "black",
+        horizontal = FALSE,
+        notch = TRUE,
+        names = c("JUN(TCGA)", "JUN(MMD)", "HDAC1(TCGA)", "HDAC1(MMD)",
+                  "RELA(TCGA)", "RELA(MMD)", "PRKCB(TCGA)", "PRKCB(MMD)",
+                  "SUMO1(TCGA)", "SUMO1(MMD)", "ABL1(TCGA)", "ABL1(MMD)",
+                  "STAT1(TCGA)", "STAT1(MMD)", "AR(TCGA)", "AR(MMD)",
+                  "CDK1(TCGA)", "CDK1(MMD)", "IRF1(TCGA)", "IRF1(MMD)")
+        
+)
+
+#############################################################################
+
+##For TCIA calculation
+library(GSVA)
+
+#set =read.csv('/Users/arthurdai/Desktop/GSE/GeneSet.csv')
+
+#set_x = list(set$Set_x)
+gs = read.csv("/Users/arthurdai/Desktop/GSE/GeneSet13.csv")
+gs = list(gs$Set)
+a = read.csv("/Users/arthurdai/Desktop/GSE/Bladder/blca_gene.csv", row.names = 1, check.names = F)
+a = as.matrix(a)
+#a = t(a)
+#gs = lapply(gs, function(x) x[!is.na(x)])
+ssgsea_score = gsva(a, gs, method = "ssgsea", ssgsea.norm = TRUE, verbose = TRUE)   # signature 'matrix,list'
+write.csv(ssgsea_score, "ssGSEA13_tcga_bladder.csv")
+
+
+
+##For correlation matrix plotting
+library(reshape2)
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+# Heatmap
+library(ggplot2)
+data = read.csv("/Users/arthurdai/Desktop/GSE/Bladder/blca_m1m2.csv", check.names = F)
+cormat = read.csv("/Users/arthurdai/Desktop/EMT_cor.csv", check.names = F)
+
+#data = data[data$Type=='SKCM',]
+#data = data[!is.na(data$CCL8),]
+#data = data[,-17]
+#data$Mutation = as.numeric(data$Mutation)
+#data= data[,-1]
+cormat <- round(cor(data,method = c("spearman")),2)
+# Get lower triangle of the correlation matrix
+get_lower_tri<-function(cormat){
+        cormat[upper.tri(cormat)] <- NA
+        return(cormat)
+}
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat){
+        cormat[lower.tri(cormat)]<- NA
+        return(cormat)
+}
+
+upper_tri <- get_upper_tri(cormat)
+upper_tri
+
+melted_cormat <- melt(cormat, id='Gene')
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+melted_cormat$Gene <- factor(melted_cormat$Gene)
+data$M1M2 <- factor(data$M1M2)
+ggplot(data = melted_cormat, aes(Gene, variable, fill = value))+
+        geom_tile(color = "white")+
+        scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                             midpoint = 0, limit = c(-1,1), space = "Lab", 
+                             name="Spearman\nCorrelation") +
+        theme_minimal()+ 
+        theme(axis.text.x = element_text(angle = 90, vjust = 1, 
+                                         size = 12, hjust = 1))+
+        coord_fixed()
+
+###For Correlation Scatter plot
+m1m2 <- read.csv('/Users/arthurdai/Desktop/GSE/melanoma_scatter.csv', row.names=1)
+m1m2$MP = m1m2$Macrophages.M1/m1m2$Macrophages.M2
+tmb = tmb[tmb$Primary.Site=='Bladder',]
+tmb$Mutation = log10(tmb$X..Mutations)
+m1m2$MP = log10(m1m2$MP)
+#library("ggpubr")
+ggscatter(m1m2, x = "IRF1", y = "TCIA", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab='IRF1 expression (normalized)', ylab = "TCIA", point=T, color = "red")
+
+ggscatter(ma, x = "RSI", y = "RNAss", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "RSI", ylab = "RNAss",point=T, color = "blue")
+
+
+##For immune landscape characterization and violin plots
+
+data <- read.csv('/Users/arthurdai/Desktop/GSE/Ciber_tcga_allSig4.csv', row.names=1)
+#data['IS'=='IFN-gamma Dominant (Immune C2)','cancer.type.abbreviation'=='BLCA']
+median(data[data$IS=='IFN-gamma Dominant (Immune C2)',"RSI_CCL8"])
+median(data[data$IS=='Immunologically Quiet (Immune C5)','RSI_CCL8'])
+median(data[data$IS=='Inflammatory (Immune C3)','RSI_CCL8'])
+median(data[data$IS=='Lymphocyte Depleted (Immune C4)','RSI_CCL8'])
+median(data[data$IS=='TGF-beta Dominant (Immune C6)','RSI_CCL8'])
+median(data[data$IS=='Wound Healing (Immune C1)','RSI_CCL8'])
+
+#data$CCL8 = 2**data$CCL8
+data$IS <- factor(data$IS, levels=c('TGF-beta Dominant (Immune C6)','Immunologically Quiet (Immune C5)','Lymphocyte Depleted (Immune C4)','Inflammatory (Immune C3)','IFN-gamma Dominant (Immune C2)','Wound Healing (Immune C1)'))
+ggplot(data, aes(RSI, CCL8, color = IS))+
+        geom_point(size=0.3)+theme_classic()+scale_color_brewer(palette ='Accent')+ylab('CCL8 (normalized)')
+p<-ggplot(data, aes(x=RSI, color=IS_type)) + 
+        #geom_histogram(aes(y=..density..), alpha=0.5, 
+                       #position="identity", colour='black')+
+        geom_density(alpha=.2)+theme_classic()+scale_color_brewer(palette="Accent")+ylab('Density')
+p+geom_vline(data=data, aes(xintercept=0.46, color=IS_type),linetype="dashed")
+
+
+summary(aov(data$RADR~data$IS))
+
+ggdotchart(data, x = "Regulation", y = "X.log10.P.",
+           color = "#FC4E07",                                # Color by groups
+           palette = c("#00AFBB", "#E7B800", "#FC4E07"), # Custom color palette
+           sorting = "descending",                       # Sort value in descending order
+           add = "segments",                             # Add segments from y = 0 to dots
+           rotate = TRUE,                                # Rotate vertically
+           #group = "Database",                                # Order by groups
+           dot.size = 6,                                 # Large dot size
+           #label = round(data$X.log10.P.),                        # Add mpg values as dot labels
+           #font.label = list(color = "white", size = 9, 
+           #vjust = 0.5),               # Adjust label parameters
+           ggtheme = theme_pubr()                        # ggplot2 theme
+)
+
+library(ggpubr)
+data <- read.csv('/Users/arthurdai/Desktop/GSE/mmd_rank.csv')
+
+ggdotchart(data, x = "Cancer", y = "RSI_median",
+           color = "#00AFBB",                                # Color by groups
+           palette = c("#00AFBB", "#E7B800", "#FC4E07"), # Custom color palette
+           sorting = "descending",                       # Sort value in descending order
+           add = "segments",                             # Add segments from y = 0 to dots
+           rotate = TRUE,                                # Rotate vertically
+           #group = "Database",                                # Order by groups
+           dot.size = 6,                                 # Large dot size
+           #label = round(data$X.log10.P.),                        # Add mpg values as dot labels
+           #font.label = list(color = "white", size = 9, 
+           #vjust = 0.5),               # Adjust label parameters
+           ggtheme = theme_pubr())+ylab('RSI(median)')
+
+library(ggplot2)
+data <- read.csv('/Users/arthurdai/Desktop/GSE/tcga_KIRP_violin.csv')
+#data = data[!is.na(data$IS),]
+data_summary <- function(x) {
+        m <- mean(x)
+        ymin <- m-sd(x)
+        ymax <- m+sd(x)
+        return(c(y=m,ymin=ymin,ymax=ymax))
+}
+data$RSI_status <- as.factor(data$RSI_status)
+library(RColorBrewer)
+mycolors <- colorRampPalette(brewer.pal(8, "Pastel2"))(11)
+
+ggplot(data, aes(x=IS, y=RSI, fill=IS)) +
+        geom_violin(trim=F, scale='width')+
+        geom_boxplot(width=0.1, fill= 'white') + theme_classic()+scale_fill_manual(values = mycolors)+
+        labs(title="KIRP ")+xlab('')
+
+
+##Identify optimal cutoff value of RSI for overall survival
+library(survminer)
+
+data <- read.csv('/Users/arthurdai/Desktop/GSE/Melanoma/melanoma_gep_final.csv', row.names=1,check.names = F)
+res.cut <- surv_cutpoint(data, time = 'OS.time', event = 'OS',
+                         variables = 'RSI')
+summary(res.cut)
+
