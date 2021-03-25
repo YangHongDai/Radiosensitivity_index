@@ -1,0 +1,10 @@
+# load series and platform data from GEO
+library(Biobase)
+library(GEOquery)
+gset <- getGEO("GSE3141", GSEMatrix =TRUE, getGPL=FALSE)
+
+if (length(gset) > 1) idx <- grep("GPL570", attr(gset, "names")) else idx <- 1
+gset <- gset[[idx]]
+#exp = t(data.frame(exprs(gset)))
+feature = gset@phenoData@data
+write.csv(feature,'GSE3141_outcome.csv')
