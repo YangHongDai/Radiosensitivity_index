@@ -1,0 +1,23 @@
+library(caret)
+library(randomForest)
+library(pROC)
+data = read.csv('/Users/arthurdai/Desktop/GSE/TCGA/C2.csv', row.names=1)
+set.seed(123)
+smp_size <- floor(0.8 * nrow(data))
+train_ind = sample(seq_len(nrow(data)), size = smp_size)
+train<-data[train_ind,]
+test<-data[-train_ind,]
+train <- train[,c('STAT1', 'IRF1', 'CDK1', 'JUN', 'ABL1','Subtype_Immune_Model_Based')]
+test <- test[,c('STAT1', 'IRF1', 'CDK1', 'JUN', 'ABL1','Subtype_Immune_Model_Based')]
+fit_rf = randomForest(Subtype_Immune_Model_Based~., data=train)
+predictions <- as.data.frame(predict(fit_rf, test, type = "prob"))
+predictions$predict <- names(predictions)[1:2][apply(predictions[,1:2], 1, which.max)]
+predictions$observed <- test$Subtype_Immune_Model_Based
+head(predictions)
+library(e1071)
+confusionMatrix(factor(predictions$predict), factor(predictions$observed))
+roc.C2 <- roc(ifelse(predictions$observed=="C2", 'C2',"Non-C2"), as.numeric(predictions$C2))
+auc(roc.C2)
+plot(roc.C2, col = "red")
+legend('bottomright', 'AUC = 0.8368')
+legend()
