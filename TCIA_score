@@ -1,0 +1,29 @@
+library(GSVA)
+library(GSVAdata)
+library(GSEABase)
+library(org.Hs.eg.db)
+library(limma)
+library(edgeR)
+data(c2BroadSets)
+gene.sets <- GeneSetCollection(c2BroadSets)
+
+set =read.csv('/Users/arthurdai/Desktop/GeneSet.csv')
+set_new = list(set$Set2, set$Set3, set$Set4,
+               set$Set6,set$Set7,set$Set8,set$Set9,set$Set10,set$Set11,
+               set$Set12,set$Set13,set$Set14,set$Set15,set$Set16,
+               set$Set17,set$Set18,set$Set19,set$Set20,
+               set$Set21,set$Set24,
+               set$Set25,set$Set26,set$Set27,set$Set28,set$Set29,
+               set$Set30,set$Set31,set$Set32,set$Set33,set$Set34,
+               set$Set35,set$Set36)
+set_res = list(set$Set37)
+set_gep = list(set$Set_new)
+gsva_data <-read.csv('/Users/arthurdai/Desktop/GSE/Pancreas/pancreas_gse_gene.csv', row.names = 1, check.names = F)
+gsva_data = as.matrix(gsva_data)
+gsva_data = t(gsva_data)
+
+enrichment.scores <- gsva(gsva_data, set_gep, method = "gsva", mx.diff = TRUE, verbose=TRUE)
+#brca_e <- enrichment.scores
+z <-as.data.frame(scale(t(enrichment.scores)))
+colnames(z) <- 'Z'
+write.csv(z,'pancreas_gse_gep.csv')
